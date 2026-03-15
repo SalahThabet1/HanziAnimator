@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stroke Order Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <script src="app.js" defer></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(console.error);
+      });
+    }
+  </script>
+</head>
+
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- ── HEADER ── -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">字</div>
+        <div class="brand-text">
+          <span class="eyebrow">Stroke Order Lab</span>
+          <h1>Chinese Animator</h1>
+        </div>
+      </div>
+
+      <div class="header-input">
+        <input id="charInput" type="text" class="text-input" placeholder="Enter any character…" autocomplete="off"
+          spellcheck="false" />
+        <button id="loadBtn" class="btn btn-primary">Load</button>
+      </div>
+
+      <div class="header-actions">
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+          <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <button id="sidebarToggle" class="sidebar-toggle" aria-label="Toggle settings panel" tabindex="0">
+          <svg id="toggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── RECENT CHIPS ── -->
+    <div class="recently-viewed" id="recentlyViewed"></div>
+
+    <!-- ── 3-COLUMN LAYOUT ── -->
+    <div class="app-layout" id="appLayout">
+
+      <!-- LEFT: Controls -->
+      <aside class="panel-left">
+        <div class="panel-card">
+
+          <button id="animateBtn" class="btn btn-primary btn-full">▶ Play Strokes</button>
+          <button id="showFullBtn" class="btn btn-secondary btn-full">👁 Show Full</button>
+          <button id="resetBtn" class="btn btn-ghost btn-full">⟳ Reset</button>
+
+          <div class="divider"></div>
+
+          <div class="section-label">STROKE NAV</div>
+          <div class="nav-grid">
+            <button id="prevBtn" class="btn btn-ghost" disabled>◀ Prev</button>
+            <button id="nextBtn" class="btn btn-ghost" disabled>Next ▶</button>
+          </div>
+          <div class="stroke-progress" id="strokeProgress">— / —</div>
+
+        </div>
+      </aside>
+
+      <!-- CENTER: Canvas -->
+      <main class="panel-canvas">
+        <div class="canvas-card">
+          <div class="writer-wrapper" id="writerWrap">
+            <!-- Shimmer loading placeholder -->
+            <div class="writer-shimmer" id="writerShimmer">
+              <div class="shimmer-char">字</div>
+            </div>
+
+            <!-- Grid overlay (toggle via #gridToggle) -->
+            <svg class="grid-overlay" id="gridOverlay" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2" width="396" height="396" fill="none" stroke="var(--grid-color)" stroke-width="1" />
+              <line x1="200" y1="2" x2="200" y2="398" stroke="var(--grid-color)" stroke-width="1" />
+              <line x1="2" y1="200" x2="398" y2="200" stroke="var(--grid-color)" stroke-width="1" />
+              <line x1="2" y1="2" x2="398" y2="398" stroke="var(--grid-color-faint)" stroke-width="1"
+                stroke-dasharray="5,5" />
+              <line x1="398" y1="2" x2="2" y2="398" stroke="var(--grid-color-faint)" stroke-width="1"
+                stroke-dasharray="5,5" />
+              <circle cx="200" cy="200" r="185" fill="none" stroke="var(--grid-color-faint)" stroke-width="1" />
+            </svg>
+
+            <!-- HanziWriter mounts here -->
+            <div id="writer"></div>
+
+            <!-- User stroke canvas overlay (quiz mode) -->
+            <canvas id="userStrokeCanvas" class="user-stroke-canvas"></canvas>
+
+            <!-- Quiz feedback flash overlay -->
+            <div class="quiz-flash" id="quizFlash"></div>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <span id="status"><span class="status-text">Load a character to begin</span></span>
+        </div>
+      </main>
+
+      <!-- RIGHT: Settings sidebar -->
+      <aside class="panel-right" id="sidebarPanel">
+        <div class="panel-card sidebar-card">
+
+          <!-- PLAYBACK -->
+          <div class="section-label">PLAYBACK</div>
+
+          <div class="setting-row">
+            <span class="setting-label">Speed</span>
+            <div class="slider-group">
+              <input type="range" id="speedSlider" class="slider" min="0.2" max="3" step="0.1" value="1" />
+              <span class="slider-value" id="speedValue">1.0×</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Loop</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="loopToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- DISPLAY -->
+          <div class="section-label">DISPLAY</div>
+
+          <div class="setting-row">
+            <span class="setting-label">Outline</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="outlineToggle" checked />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Background</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="backgroundToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Grid</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="gridToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Medians <span class="hint">(quiz)</span></span>
+            <label class="pill-switch">
+              <input type="checkbox" id="mediansToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Radical</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="radicalToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- PRACTICE -->
+          <div class="section-label">PRACTICE</div>
+
+          <div class="setting-row">
+            <span class="setting-label">Hint After</span>
+            <div class="slider-group">
+              <input type="range" id="hintSlider" class="slider" min="1" max="5" step="1" value="3" />
+              <span class="slider-value" id="hintValue">3</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Draw Width</span>
+            <div class="slider-group">
+              <input type="range" id="drawWidthSlider" class="slider" min="5" max="50" step="1" value="20" />
+              <span class="slider-value" id="drawWidthValue">20</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Hint Speed</span>
+            <div class="slider-group">
+              <input type="range" id="hintSpeedSlider" class="slider" min="0.5" max="5" step="0.5" value="3" />
+              <span class="slider-value" id="hintSpeedValue">3.0×</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Show Strokes</span>
+            <label class="pill-switch">
+              <input type="checkbox" id="showUserStrokesToggle" />
+              <span class="pill-track"></span>
+            </label>
+          </div>
+
+          <button id="quizBtn" class="btn btn-secondary btn-full">✏ Start Quiz</button>
+          <div id="quizResult" class="quiz-result"></div>
+
+          <div class="divider"></div>
+
+          <!-- COLORS -->
+          <div class="section-label">COLORS</div>
+
+          <div class="color-grid">
+            <div class="color-item">
+              <input type="color" id="strokeColor" value="#c0392b">
+              <span>Stroke</span>
+            </div>
+            <div class="color-item">
+              <input type="color" id="radColor" value="#e8a000">
+              <span>Radical</span>
+            </div>
+            <div class="color-item">
+              <input type="color" id="outColor" value="#ddd0b8">
+              <span>Outline</span>
+            </div>
+            <div class="color-item">
+              <input type="color" id="drawColor" value="#333333">
+              <span>Draw</span>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div><!-- /.app-layout -->
+
+  </div><!-- /.app-wrapper -->
+
+  <!-- Mobile bottom sheet backdrop -->
+  <div class="bottom-sheet-backdrop" id="sheetBackdrop"></div>
+
+</body>
+
+</html>
